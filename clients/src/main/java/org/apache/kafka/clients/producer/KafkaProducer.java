@@ -76,6 +76,7 @@ import org.apache.kafka.common.utils.Utils;
 import org.slf4j.Logger;
 
 import java.net.InetSocketAddress;
+import java.nio.channels.spi.SelectorProvider;
 import java.time.Duration;
 import java.util.Collections;
 import java.util.HashMap;
@@ -270,7 +271,22 @@ public class KafkaProducer<K, V> implements Producer<K, V> {
      *
      */
     public KafkaProducer(final Map<String, Object> configs) {
-        this(configs, null, null, null, null, null, Time.SYSTEM);
+        this(configs, null, null, null, null, null, Time.SYSTEM, SelectorProvider.provider());
+    }
+
+    /**
+     * A producer is instantiated by providing a set of key-value pairs as configuration. Valid configuration strings
+     * are documented <a href="http://kafka.apache.org/documentation.html#producerconfigs">here</a>. Values can be
+     * either strings or Objects of the appropriate type (for example a numeric configuration would accept either the
+     * string "42" or the integer 42).
+     * <p>
+     * Note: after creating a {@code KafkaProducer} you must always {@link #close()} it to avoid resource leaks.
+     * @param configs   The producer configs
+     * @param selectorProvider The NIO SelectorProvider
+     *
+     */
+    public KafkaProducer(final Map<String, Object> configs, SelectorProvider selectorProvider) {
+        this(configs, null, null, null, null, null, Time.SYSTEM, selectorProvider);
     }
 
     /**
@@ -287,7 +303,26 @@ public class KafkaProducer<K, V> implements Producer<K, V> {
      *                         be called in the producer when the serializer is passed in directly.
      */
     public KafkaProducer(Map<String, Object> configs, Serializer<K> keySerializer, Serializer<V> valueSerializer) {
-        this(configs, keySerializer, valueSerializer, null, null, null, Time.SYSTEM);
+        this(configs, keySerializer, valueSerializer, null, null, null, Time.SYSTEM, SelectorProvider.provider());
+    }
+
+    /**
+     * A producer is instantiated by providing a set of key-value pairs as configuration, a key and a value {@link Serializer}.
+     * Valid configuration strings are documented <a href="http://kafka.apache.org/documentation.html#producerconfigs">here</a>.
+     * Values can be either strings or Objects of the appropriate type (for example a numeric configuration would accept
+     * either the string "42" or the integer 42).
+     * <p>
+     * Note: after creating a {@code KafkaProducer} you must always {@link #close()} it to avoid resource leaks.
+     * @param configs   The producer configs
+     * @param keySerializer  The serializer for key that implements {@link Serializer}. The configure() method won't be
+     *                       called in the producer when the serializer is passed in directly.
+     * @param valueSerializer  The serializer for value that implements {@link Serializer}. The configure() method won't
+     *                         be called in the producer when the serializer is passed in directly.
+     * @param selectorProvider The NIO SelectorProvider
+     */
+    public KafkaProducer(Map<String, Object> configs, Serializer<K> keySerializer, Serializer<V> valueSerializer,
+                         SelectorProvider selectorProvider) {
+        this(configs, keySerializer, valueSerializer, null, null, null, Time.SYSTEM, selectorProvider);
     }
 
     /**
@@ -298,7 +333,19 @@ public class KafkaProducer<K, V> implements Producer<K, V> {
      * @param properties   The producer configs
      */
     public KafkaProducer(Properties properties) {
-        this(propsToMap(properties), null, null, null, null, null, Time.SYSTEM);
+        this(propsToMap(properties), null, null, null, null, null, Time.SYSTEM, SelectorProvider.provider());
+    }
+
+    /**
+     * A producer is instantiated by providing a set of key-value pairs as configuration. Valid configuration strings
+     * are documented <a href="http://kafka.apache.org/documentation.html#producerconfigs">here</a>.
+     * <p>
+     * Note: after creating a {@code KafkaProducer} you must always {@link #close()} it to avoid resource leaks.
+     * @param properties   The producer configs
+     * @param selectorProvider The NIO SelectorProvider
+     */
+    public KafkaProducer(Properties properties, SelectorProvider selectorProvider) {
+        this(propsToMap(properties), null, null, null, null, null, Time.SYSTEM, selectorProvider);
     }
 
     /**
@@ -314,7 +361,36 @@ public class KafkaProducer<K, V> implements Producer<K, V> {
      */
     public KafkaProducer(Properties properties, Serializer<K> keySerializer, Serializer<V> valueSerializer) {
         this(propsToMap(properties), keySerializer, valueSerializer, null, null, null,
-                Time.SYSTEM);
+                Time.SYSTEM, SelectorProvider.provider());
+    }
+
+    /**
+     * A producer is instantiated by providing a set of key-value pairs as configuration, a key and a value {@link Serializer}.
+     * Valid configuration strings are documented <a href="http://kafka.apache.org/documentation.html#producerconfigs">here</a>.
+     * <p>
+     * Note: after creating a {@code KafkaProducer} you must always {@link #close()} it to avoid resource leaks.
+     * @param properties   The producer configs
+     * @param keySerializer  The serializer for key that implements {@link Serializer}. The configure() method won't be
+     *                       called in the producer when the serializer is passed in directly.
+     * @param valueSerializer  The serializer for value that implements {@link Serializer}. The configure() method won't
+     *                         be called in the producer when the serializer is passed in directly.
+     * @param selectorProvider The NIO SelectorProvider
+     */
+    public KafkaProducer(Properties properties, Serializer<K> keySerializer, Serializer<V> valueSerializer,
+                         SelectorProvider selectorProvider) {
+        this(propsToMap(properties), keySerializer, valueSerializer, null, null, null,
+                Time.SYSTEM, selectorProvider);
+    }
+
+    // visible for testing
+    KafkaProducer(Map<String, Object> configs,
+                  Serializer<K> keySerializer,
+                  Serializer<V> valueSerializer,
+                  ProducerMetadata metadata,
+                  KafkaClient kafkaClient,
+                  ProducerInterceptors<K, V> interceptors,
+                  Time time) {
+        this(configs, keySerializer, valueSerializer, metadata, kafkaClient, interceptors, time, SelectorProvider.provider());
     }
 
     // visible for testing
@@ -325,7 +401,8 @@ public class KafkaProducer<K, V> implements Producer<K, V> {
                   ProducerMetadata metadata,
                   KafkaClient kafkaClient,
                   ProducerInterceptors<K, V> interceptors,
-                  Time time) {
+                  Time time,
+                  SelectorProvider selectorProvider) {
         ProducerConfig config = new ProducerConfig(ProducerConfig.addSerializerToConfig(configs, keySerializer,
                 valueSerializer));
         try {
@@ -427,7 +504,7 @@ public class KafkaProducer<K, V> implements Producer<K, V> {
                 this.metadata.bootstrap(addresses);
             }
             this.errors = this.metrics.sensor("errors");
-            this.sender = newSender(logContext, kafkaClient, this.metadata);
+            this.sender = newSender(logContext, kafkaClient, this.metadata, selectorProvider);
             String ioThreadName = NETWORK_THREAD_PREFIX + " | " + clientId;
             this.ioThread = new KafkaThread(ioThreadName, this.sender, true);
             this.ioThread.start();
@@ -444,6 +521,12 @@ public class KafkaProducer<K, V> implements Producer<K, V> {
 
     // visible for testing
     Sender newSender(LogContext logContext, KafkaClient kafkaClient, ProducerMetadata metadata) {
+        return newSender(logContext, kafkaClient, metadata, SelectorProvider.provider());
+    }
+
+    // visible for testing
+    Sender newSender(LogContext logContext, KafkaClient kafkaClient, ProducerMetadata metadata,
+                     SelectorProvider selectorProvider) {
         int maxInflightRequests = configureInflightRequests(producerConfig);
         int requestTimeoutMs = producerConfig.getInt(ProducerConfig.REQUEST_TIMEOUT_MS_CONFIG);
         ChannelBuilder channelBuilder = ClientUtils.createChannelBuilder(producerConfig, time, logContext);
@@ -451,7 +534,7 @@ public class KafkaProducer<K, V> implements Producer<K, V> {
         Sensor throttleTimeSensor = Sender.throttleTimeSensor(metricsRegistry.senderMetrics);
         KafkaClient client = kafkaClient != null ? kafkaClient : new NetworkClient(
                 new Selector(producerConfig.getLong(ProducerConfig.CONNECTIONS_MAX_IDLE_MS_CONFIG),
-                        this.metrics, time, "producer", channelBuilder, logContext),
+                        this.metrics, time, "producer", channelBuilder, selectorProvider, logContext),
                 metadata,
                 clientId,
                 maxInflightRequests,
