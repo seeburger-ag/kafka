@@ -41,6 +41,7 @@ import java.nio.channels.CancelledKeyException;
 import java.nio.channels.SelectionKey;
 import java.nio.channels.SocketChannel;
 import java.nio.channels.UnresolvedAddressException;
+import java.nio.channels.spi.SelectorProvider;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -102,6 +103,7 @@ public class Selector implements Selectable, AutoCloseable {
     }
 
     private final Logger log;
+    private final SelectorProvider selectorProvider;
     private final java.nio.channels.Selector nioSelector;
     private final Map<String, KafkaChannel> channels;
     private final Set<KafkaChannel> explicitlyMutedChannels;
@@ -129,6 +131,35 @@ public class Selector implements Selectable, AutoCloseable {
     //this is used to prevent tight loops when memory is not available to read any more data
     private boolean madeReadProgressLastPoll = true;
 
+    public Selector(int maxReceiveSize,
+                    long connectionMaxIdleMs,
+                    int failedAuthenticationDelayMs,
+                    Metrics metrics,
+                    Time time,
+                    String metricGrpPrefix,
+                    Map<String, String> metricTags,
+                    boolean metricsPerConnection,
+                    boolean recordTimePerConnection,
+                    ChannelBuilder channelBuilder,
+                    MemoryPool memoryPool,
+                    LogContext logContext) {
+        this(
+                maxReceiveSize,
+                connectionMaxIdleMs,
+                failedAuthenticationDelayMs,
+                metrics,
+                time,
+                metricGrpPrefix,
+                metricTags,
+                metricsPerConnection,
+                recordTimePerConnection,
+                channelBuilder,
+                memoryPool,
+                SelectorProvider.provider(),
+                logContext
+        );
+    }
+
     /**
      * Create a new nioSelector
      * @param maxReceiveSize Max size in bytes of a single network receive (use {@link NetworkReceive#UNLIMITED} for no limit)
@@ -154,12 +185,14 @@ public class Selector implements Selectable, AutoCloseable {
             boolean recordTimePerConnection,
             ChannelBuilder channelBuilder,
             MemoryPool memoryPool,
+            SelectorProvider selectorProvider,
             LogContext logContext) {
         try {
-            this.nioSelector = java.nio.channels.Selector.open();
+            this.nioSelector = selectorProvider.openSelector();
         } catch (IOException e) {
             throw new KafkaException(e);
         }
+        this.selectorProvider = selectorProvider;
         this.maxReceiveSize = maxReceiveSize;
         this.time = time;
         this.channels = new HashMap<>();
@@ -195,8 +228,36 @@ public class Selector implements Selectable, AutoCloseable {
                     ChannelBuilder channelBuilder,
                     MemoryPool memoryPool,
                     LogContext logContext) {
+        this(
+                maxReceiveSize,
+                connectionMaxIdleMs,
+                metrics,
+                time,
+                metricGrpPrefix,
+                metricTags,
+                metricsPerConnection,
+                recordTimePerConnection,
+                channelBuilder,
+                memoryPool,
+                SelectorProvider.provider(),
+                logContext
+        );
+    }
+
+    public Selector(int maxReceiveSize,
+                    long connectionMaxIdleMs,
+                    Metrics metrics,
+                    Time time,
+                    String metricGrpPrefix,
+                    Map<String, String> metricTags,
+                    boolean metricsPerConnection,
+                    boolean recordTimePerConnection,
+                    ChannelBuilder channelBuilder,
+                    MemoryPool memoryPool,
+                    SelectorProvider selectorProvider,
+                    LogContext logContext) {
         this(maxReceiveSize, connectionMaxIdleMs, NO_FAILED_AUTHENTICATION_DELAY, metrics, time, metricGrpPrefix, metricTags,
-                metricsPerConnection, recordTimePerConnection, channelBuilder, memoryPool, logContext);
+                metricsPerConnection, recordTimePerConnection, channelBuilder, memoryPool, selectorProvider, logContext);
     }
 
     public Selector(int maxReceiveSize,
@@ -209,7 +270,33 @@ public class Selector implements Selectable, AutoCloseable {
                     boolean metricsPerConnection,
                     ChannelBuilder channelBuilder,
                     LogContext logContext) {
-        this(maxReceiveSize, connectionMaxIdleMs, failedAuthenticationDelayMs, metrics, time, metricGrpPrefix, metricTags, metricsPerConnection, false, channelBuilder, MemoryPool.NONE, logContext);
+        this(
+                maxReceiveSize,
+                connectionMaxIdleMs,
+                failedAuthenticationDelayMs,
+                metrics,
+                time,
+                metricGrpPrefix,
+                metricTags,
+                metricsPerConnection,
+                channelBuilder,
+                SelectorProvider.provider(),
+                logContext
+        );
+    }
+
+    public Selector(int maxReceiveSize,
+                    long connectionMaxIdleMs,
+                    int failedAuthenticationDelayMs,
+                    Metrics metrics,
+                    Time time,
+                    String metricGrpPrefix,
+                    Map<String, String> metricTags,
+                    boolean metricsPerConnection,
+                    ChannelBuilder channelBuilder,
+                    SelectorProvider selectorProvider,
+                    LogContext logContext) {
+        this(maxReceiveSize, connectionMaxIdleMs, failedAuthenticationDelayMs, metrics, time, metricGrpPrefix, metricTags, metricsPerConnection, false, channelBuilder, MemoryPool.NONE, selectorProvider, logContext);
     }
 
     public Selector(int maxReceiveSize,
@@ -221,15 +308,47 @@ public class Selector implements Selectable, AutoCloseable {
                     boolean metricsPerConnection,
                     ChannelBuilder channelBuilder,
                     LogContext logContext) {
-        this(maxReceiveSize, connectionMaxIdleMs, NO_FAILED_AUTHENTICATION_DELAY, metrics, time, metricGrpPrefix, metricTags, metricsPerConnection, channelBuilder, logContext);
+        this(
+                maxReceiveSize,
+                connectionMaxIdleMs,
+                metrics,
+                time,
+                metricGrpPrefix,
+                metricTags,
+                metricsPerConnection,
+                channelBuilder,
+                SelectorProvider.provider(),
+                logContext
+        );
+    }
+
+    public Selector(int maxReceiveSize,
+                    long connectionMaxIdleMs,
+                    Metrics metrics,
+                    Time time,
+                    String metricGrpPrefix,
+                    Map<String, String> metricTags,
+                    boolean metricsPerConnection,
+                    ChannelBuilder channelBuilder,
+                    SelectorProvider selectorProvider,
+                    LogContext logContext) {
+        this(maxReceiveSize, connectionMaxIdleMs, NO_FAILED_AUTHENTICATION_DELAY, metrics, time, metricGrpPrefix, metricTags, metricsPerConnection, channelBuilder, selectorProvider, logContext);
     }
 
     public Selector(long connectionMaxIdleMS, Metrics metrics, Time time, String metricGrpPrefix, ChannelBuilder channelBuilder, LogContext logContext) {
-        this(NetworkReceive.UNLIMITED, connectionMaxIdleMS, metrics, time, metricGrpPrefix, Collections.emptyMap(), true, channelBuilder, logContext);
+        this(connectionMaxIdleMS, metrics, time, metricGrpPrefix, channelBuilder, SelectorProvider.provider(), logContext);
+    }
+
+    public Selector(long connectionMaxIdleMS, Metrics metrics, Time time, String metricGrpPrefix, ChannelBuilder channelBuilder, SelectorProvider selectorProvider, LogContext logContext) {
+        this(NetworkReceive.UNLIMITED, connectionMaxIdleMS, metrics, time, metricGrpPrefix, Collections.emptyMap(), true, channelBuilder, selectorProvider, logContext);
     }
 
     public Selector(long connectionMaxIdleMS, int failedAuthenticationDelayMs, Metrics metrics, Time time, String metricGrpPrefix, ChannelBuilder channelBuilder, LogContext logContext) {
-        this(NetworkReceive.UNLIMITED, connectionMaxIdleMS, failedAuthenticationDelayMs, metrics, time, metricGrpPrefix, Collections.<String, String>emptyMap(), true, channelBuilder, logContext);
+        this(connectionMaxIdleMS, failedAuthenticationDelayMs, metrics, time, metricGrpPrefix, channelBuilder, SelectorProvider.provider(), logContext);
+    }
+
+    public Selector(long connectionMaxIdleMS, int failedAuthenticationDelayMs, Metrics metrics, Time time, String metricGrpPrefix, ChannelBuilder channelBuilder, SelectorProvider selectorProvider, LogContext logContext) {
+        this(NetworkReceive.UNLIMITED, connectionMaxIdleMS, failedAuthenticationDelayMs, metrics, time, metricGrpPrefix, Collections.<String, String>emptyMap(), true, channelBuilder, selectorProvider, logContext);
     }
 
     /**
@@ -248,7 +367,7 @@ public class Selector implements Selectable, AutoCloseable {
     @Override
     public void connect(String id, InetSocketAddress address, int sendBufferSize, int receiveBufferSize) throws IOException {
         ensureNotRegistered(id);
-        SocketChannel socketChannel = SocketChannel.open();
+        SocketChannel socketChannel = selectorProvider.openSocketChannel();
         SelectionKey key = null;
         try {
             configureSocketChannel(socketChannel, sendBufferSize, receiveBufferSize);

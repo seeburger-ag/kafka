@@ -32,6 +32,7 @@ import org.apache.kafka.common.utils.LogContext;
 import org.apache.kafka.common.utils.Time;
 
 import java.net.InetSocketAddress;
+import java.nio.channels.spi.SelectorProvider;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.BlockingQueue;
@@ -92,6 +93,7 @@ public class DefaultEventHandler implements EventHandler {
             time,
             METRIC_GRP_PREFIX,
             channelBuilder,
+            SelectorProvider.provider(),
             logContext
         );
         final NetworkClient netClient = new NetworkClient(

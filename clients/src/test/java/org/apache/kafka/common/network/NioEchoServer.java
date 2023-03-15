@@ -42,6 +42,7 @@ import java.nio.channels.SelectionKey;
 import java.nio.channels.ServerSocketChannel;
 import java.nio.channels.SocketChannel;
 import java.nio.channels.WritableByteChannel;
+import java.nio.channels.spi.SelectorProvider;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -128,7 +129,7 @@ public class NioEchoServer extends Thread {
                 () -> ApiVersionsResponse.defaultApiVersionsResponse(ApiMessageType.ListenerType.ZK_BROKER));
         this.metrics = new Metrics();
         this.selector = new Selector(10000, failedAuthenticationDelayMs, metrics, time,
-                "MetricGroup", channelBuilder, logContext);
+                "MetricGroup", channelBuilder, SelectorProvider.provider(), logContext);
         acceptorThread = new AcceptorThread();
         this.time = time;
     }

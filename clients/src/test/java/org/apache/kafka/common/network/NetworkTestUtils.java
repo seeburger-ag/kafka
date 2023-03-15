@@ -18,6 +18,7 @@ package org.apache.kafka.common.network;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.nio.channels.spi.SelectorProvider;
 import java.nio.charset.StandardCharsets;
 import java.util.Map;
 
@@ -63,7 +64,7 @@ public class NetworkTestUtils {
     }
 
     public static Selector createSelector(ChannelBuilder channelBuilder, Time time) {
-        return new Selector(5000, new Metrics(), time, "MetricGroup", channelBuilder, new LogContext());
+        return new Selector(5000, new Metrics(), time, "MetricGroup", channelBuilder, SelectorProvider.provider(), new LogContext());
     }
 
     public static void checkClientConnection(Selector selector, String node, int minMessageSize, int messageCount) throws Exception {
