@@ -89,7 +89,6 @@ import org.junit.jupiter.params.provider.ValueSource;
 import javax.management.MBeanServer;
 import javax.management.ObjectName;
 import java.lang.management.ManagementFactory;
-import java.nio.channels.spi.SelectorProvider;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.ArrayList;
@@ -174,7 +173,7 @@ public class KafkaProducerTest {
                   ProducerInterceptors<K, V> interceptors,
                   Time time) {
         return new KafkaProducer<>(new ProducerConfig(ProducerConfig.appendSerializerToConfig(configs, keySerializer, valueSerializer)),
-            keySerializer, valueSerializer, metadata, kafkaClient, interceptors, time, SelectorProvider.provider());
+            keySerializer, valueSerializer, metadata, kafkaClient, interceptors, time);
     }
 
     @BeforeEach
@@ -686,11 +685,11 @@ public class KafkaProducerTest {
 
         return new KafkaProducer<String, String>(
                 new ProducerConfig(ProducerConfig.appendSerializerToConfig(configs, new StringSerializer(), new StringSerializer())),
-                new StringSerializer(), new StringSerializer(), metadata, mockClient, null, time, SelectorProvider.provider()) {
+                new StringSerializer(), new StringSerializer(), metadata, mockClient, null, time) {
             @Override
-            Sender newSender(LogContext logContext, KafkaClient kafkaClient, ProducerMetadata metadata, SelectorProvider selectorProvider) {
+            Sender newSender(LogContext logContext, KafkaClient kafkaClient, ProducerMetadata metadata) {
                 // give Sender its own Metadata instance so that we can isolate Metadata calls from KafkaProducer
-                return super.newSender(logContext, kafkaClient, newMetadata(0, 100_000), selectorProvider);
+                return super.newSender(logContext, kafkaClient, newMetadata(0, 100_000));
             }
         };
     }
@@ -1911,7 +1910,7 @@ public class KafkaProducerTest {
         assertTrue(config.unused().contains(SslConfigs.SSL_PROTOCOL_CONFIG));
 
         try (KafkaProducer<byte[], byte[]> producer = new KafkaProducer<>(config, null, null,
-                null, null, null, Time.SYSTEM, SelectorProvider.provider())) {
+                null, null, null, Time.SYSTEM)) {
             assertTrue(config.unused().contains(SslConfigs.SSL_PROTOCOL_CONFIG));
         }
     }

@@ -18,7 +18,6 @@ package org.apache.kafka.common.network;
 
 import java.net.InetSocketAddress;
 import java.nio.ByteBuffer;
-import java.nio.channels.spi.SelectorProvider;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -168,6 +167,6 @@ public class SslVersionsTransportLayerTest {
             new SslTransportLayerTest.TestSslChannelBuilder(Mode.CLIENT);
         channelBuilder.configureBufferSizes(null, null, null);
         channelBuilder.configure(sslClientConfigs);
-        return new Selector(100 * 5000, new Metrics(), TIME, "MetricGroup", channelBuilder, SelectorProvider.provider(), new LogContext());
+        return new Selector(100 * 5000, new Metrics(), TIME, "MetricGroup", channelBuilder, new LogContext());
     }
 }

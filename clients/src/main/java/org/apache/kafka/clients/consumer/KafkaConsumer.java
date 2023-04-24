@@ -61,7 +61,6 @@ import org.apache.kafka.common.utils.Utils;
 import org.slf4j.Logger;
 
 import java.net.InetSocketAddress;
-import java.nio.channels.spi.SelectorProvider;
 import java.time.Duration;
 import java.util.Collection;
 import java.util.Collections;
@@ -611,11 +610,7 @@ public class KafkaConsumer<K, V> implements Consumer<K, V> {
      * @param configs The consumer configs
      */
     public KafkaConsumer(Map<String, Object> configs) {
-        this(configs, null, null, SelectorProvider.provider());
-    }
-
-    public KafkaConsumer(Map<String, Object> configs, SelectorProvider provider) {
-        this(configs, null, null, provider);
+        this(configs, null, null);
     }
 
     /**
@@ -648,15 +643,7 @@ public class KafkaConsumer<K, V> implements Consumer<K, V> {
     public KafkaConsumer(Properties properties,
                          Deserializer<K> keyDeserializer,
                          Deserializer<V> valueDeserializer) {
-        this(Utils.propsToMap(properties), keyDeserializer, valueDeserializer, SelectorProvider.provider());
-    }
-
-    public KafkaConsumer(Map<String, Object> configs,
-                         Deserializer<K> keyDeserializer,
-                         Deserializer<V> valueDeserializer)
-    {
-        this(new ConsumerConfig(ConsumerConfig.appendDeserializerToConfig(configs, keyDeserializer, valueDeserializer)),
-                keyDeserializer, valueDeserializer, SelectorProvider.provider());
+        this(Utils.propsToMap(properties), keyDeserializer, valueDeserializer);
     }
 
     /**
@@ -674,15 +661,13 @@ public class KafkaConsumer<K, V> implements Consumer<K, V> {
      */
     public KafkaConsumer(Map<String, Object> configs,
                          Deserializer<K> keyDeserializer,
-                         Deserializer<V> valueDeserializer,
-                         SelectorProvider provider) {
+                         Deserializer<V> valueDeserializer) {
         this(new ConsumerConfig(ConsumerConfig.appendDeserializerToConfig(configs, keyDeserializer, valueDeserializer)),
-                keyDeserializer, valueDeserializer, provider);
+                keyDeserializer, valueDeserializer);
     }
 
-
     @SuppressWarnings("unchecked")
-    KafkaConsumer(ConsumerConfig config, Deserializer<K> keyDeserializer, Deserializer<V> valueDeserializer, SelectorProvider provider) {
+    KafkaConsumer(ConsumerConfig config, Deserializer<K> keyDeserializer, Deserializer<V> valueDeserializer) {
         try {
             GroupRebalanceConfig groupRebalanceConfig = new GroupRebalanceConfig(config,
                     GroupRebalanceConfig.ProtocolType.CONSUMER);
@@ -757,7 +742,7 @@ public class KafkaConsumer<K, V> implements Consumer<K, V> {
 
             ApiVersions apiVersions = new ApiVersions();
             NetworkClient netClient = new NetworkClient(
-                    new Selector(config.getLong(ConsumerConfig.CONNECTIONS_MAX_IDLE_MS_CONFIG), metrics, time, metricGrpPrefix, channelBuilder, provider, logContext),
+                    new Selector(config.getLong(ConsumerConfig.CONNECTIONS_MAX_IDLE_MS_CONFIG), metrics, time, metricGrpPrefix, channelBuilder, logContext),
                     this.metadata,
                     clientId,
                     100, // a fixed large enough value will suffice for max in-flight requests
